@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Touch Game"
+version = "1.0.0"
+id = "artifacts/touch-game"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 21657
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/touch-game run dev"
+
+[services.env]
+PORT = "21657"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/touch-game", "run", "build"]
+publicDir = "artifacts/touch-game/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
