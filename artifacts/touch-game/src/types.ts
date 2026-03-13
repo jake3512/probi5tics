@@ -1,5 +1,5 @@
 export type CardType = "attack" | "magic" | "heal" | "shield" | "special";
-export type Rarity = "common" | "rare" | "epic";
+export type Rarity = "common" | "uncommon" | "rare" | "endangered" | "mythic";
 export type Page = "lobby" | "gacha" | "battle";
 
 export interface CardDef {
@@ -10,8 +10,8 @@ export interface CardDef {
   color: string;
   desc: string;
   rarity: Rarity;
-  minVal: number;
-  maxVal: number;
+  value: number;
+  value2?: number;
 }
 
 export interface Card {
@@ -24,10 +24,12 @@ export interface Card {
   desc: string;
   rarity: Rarity;
   value: number;
+  value2?: number;
 }
 
 export interface GameState {
   coins: number;
+  freeGachaLeft: number;
   collection: Card[];
   deckUids: string[];
 }

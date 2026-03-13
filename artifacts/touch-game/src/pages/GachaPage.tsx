@@ -1,84 +1,96 @@
 import { useState, useCallback } from "react";
 import type { Card } from "../types";
-import { rollCard, RARITY_LABEL } from "../gameData";
+import { rollThree, RARITY_INFO } from "../gameData";
 
 interface Props {
   coins: number;
-  onDraw: (cards: Card[]) => void;
+  freeLeft: number;
+  onDraw: (cards: Card[], usedFree: boolean) => void;
   onBack: () => void;
 }
 
-const SINGLE_COST = 10;
-const MULTI_COST = 80;
+const PULL_COST = 30;
 
-function CardResult({ card }: { card: Card }) {
-  const rl = RARITY_LABEL[card.rarity];
+function CardResult({ card, delay }: { card: Card; delay: number }) {
+  const ri = RARITY_INFO[card.rarity];
   return (
     <div
       style={{
-        width: 80,
-        background: `linear-gradient(135deg, ${card.color}33, ${card.color}11)`,
+        width: 90,
+        background: `linear-gradient(160deg, ${card.color}30, ${card.color}10)`,
         border: `2px solid ${card.color}`,
-        borderRadius: 14,
-        padding: "8px 4px",
+        borderRadius: 16,
+        padding: "10px 6px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        boxShadow: `0 0 16px ${card.color}44`,
-        animation: "popIn 0.3s ease-out",
+        boxShadow: `0 0 18px ${card.color}55`,
+        animation: `popIn 0.4s ease-out ${delay}s both`,
+        flexShrink: 0,
       }}
     >
-      <div style={{ fontSize: 28 }}>{card.emoji}</div>
-      <div style={{ color: "white", fontSize: 11, fontWeight: "bold", textAlign: "center", marginTop: 3 }}>{card.name}</div>
-      <div style={{ color: rl.color, fontSize: 10, marginTop: 1 }}>{rl.label}</div>
-      <div style={{ color: card.color, fontWeight: "bold", fontSize: 16, marginTop: 2 }}>{card.value}</div>
+      <div style={{ fontSize: 34 }}>{card.emoji}</div>
+      <div style={{ color: "white", fontSize: 12, fontWeight: "bold", textAlign: "center", marginTop: 4 }}>{card.name}</div>
+      <div
+        style={{
+          color: ri.color,
+          fontSize: 10,
+          fontWeight: "bold",
+          marginTop: 2,
+          padding: "1px 6px",
+          background: `${ri.color}22`,
+          borderRadius: 99,
+          border: `1px solid ${ri.color}66`,
+        }}
+      >
+        {ri.label}
+      </div>
+      <div style={{ color: card.color, fontWeight: "bold", fontSize: 18, marginTop: 4 }}>
+        {card.value}{card.value2 ? `+${card.value2}` : ""}
+      </div>
+      <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, textAlign: "center", marginTop: 2 }}>{card.desc}</div>
     </div>
   );
 }
 
-export default function GachaPage({ coins, onDraw, onBack }: Props) {
+export default function GachaPage({ coins, freeLeft, onDraw, onBack }: Props) {
   const [results, setResults] = useState<Card[]>([]);
-  const [rolling, setRolling] = useState(false);
-  const [step, setStep] = useState<"idle" | "rolling" | "result">("idle");
+  const [animating, setAnimating] = useState(false);
+  const [showResults, setShowResults] = useState(false);
 
-  const doGacha = useCallback(
-    (count: number) => {
-      const cost = count === 1 ? SINGLE_COST : MULTI_COST;
-      if (coins < cost) return;
-      setRolling(true);
-      setStep("rolling");
+  const doPull = useCallback(
+    (free: boolean) => {
+      if (animating) return;
+      if (!free && coins < PULL_COST) return;
+      setAnimating(true);
+      setShowResults(false);
       setResults([]);
 
-      // Reveal cards one by one with delay
-      const cards = Array.from({ length: count }, () => rollCard());
-      let i = 0;
-      const reveal = () => {
-        if (i < cards.length) {
-          setResults((prev) => [...prev, cards[i]]);
-          i++;
-          setTimeout(reveal, count === 1 ? 0 : 120);
-        } else {
-          setRolling(false);
-          setStep("result");
-        }
-      };
-      setTimeout(reveal, count === 1 ? 400 : 600);
-      onDraw(cards);
+      const cards = rollThree();
+      onDraw(cards, free);
+
+      setTimeout(() => {
+        setResults(cards);
+        setShowResults(true);
+        setAnimating(false);
+      }, 800);
     },
-    [coins, onDraw]
+    [animating, coins, onDraw]
   );
+
+  const canPay = coins >= PULL_COST;
 
   return (
     <div
       style={{
         minHeight: "100dvh",
-        background: "linear-gradient(180deg, #1a0533 0%, #0d1b4b 50%, #0a0a1a 100%)",
+        background: "linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #1a0533 100%)",
         display: "flex",
         flexDirection: "column",
         color: "white",
         fontFamily: "'Segoe UI', sans-serif",
         overflowY: "auto",
-        paddingBottom: 24,
+        paddingBottom: 28,
       }}
     >
       {/* Header */}
@@ -95,92 +107,103 @@ export default function GachaPage({ coins, onDraw, onBack }: Props) {
         <div style={{ marginLeft: "auto", color: "#facc15", fontWeight: "bold", fontSize: 14 }}>💰 {coins}</div>
       </div>
 
-      {/* Rates Info */}
-      <div style={{ margin: "14px 16px 0", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: "10px 14px" }}>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>뽑기 확률</div>
-        <div style={{ display: "flex", gap: 16 }}>
-          <span style={{ fontSize: 12, color: "#94a3b8" }}>⬜ 일반 70%</span>
-          <span style={{ fontSize: 12, color: "#60a5fa" }}>🟦 레어 25%</span>
-          <span style={{ fontSize: 12, color: "#c084fc" }}>🟪 에픽 5%</span>
+      {/* Rates */}
+      <div style={{ margin: "14px 16px 0", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: "12px 14px" }}>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>뽑기 확률 (매 뽑기 3장 지급)</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {(["common","uncommon","rare","endangered","mythic"] as const).map(r => {
+            const info = RARITY_INFO[r];
+            const pct = (info.chance * 100).toFixed(0);
+            return (
+              <div key={r} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 60, color: info.color, fontSize: 12, fontWeight: "bold" }}>{info.label}</div>
+                <div style={{ flex: 1, background: "rgba(0,0,0,0.3)", borderRadius: 99, height: 6, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: info.color, borderRadius: 99 }} />
+                </div>
+                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, width: 36, textAlign: "right" }}>{pct}%</div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Gacha Buttons */}
+      {/* Pull Buttons */}
       <div style={{ display: "flex", gap: 10, padding: "14px 16px 0" }}>
+        {freeLeft > 0 && (
+          <button
+            onClick={() => doPull(true)}
+            disabled={animating}
+            style={{
+              flex: 1, padding: "16px 0",
+              background: "linear-gradient(135deg, #16a34a, #166534)",
+              border: "2px solid #4ade80",
+              borderRadius: 14, color: "white",
+              fontSize: 15, fontWeight: "bold",
+              cursor: animating ? "default" : "pointer",
+              opacity: animating ? 0.6 : 1,
+              boxShadow: "0 0 20px rgba(74,222,128,0.3)",
+            }}
+          >
+            무료 뽑기<br />
+            <span style={{ fontSize: 13, color: "#4ade80" }}>잔여 {freeLeft}회</span>
+          </button>
+        )}
         <button
-          onClick={() => doGacha(1)}
-          disabled={rolling || coins < SINGLE_COST}
+          onClick={() => doPull(false)}
+          disabled={animating || !canPay}
           style={{
             flex: 1, padding: "16px 0",
-            background: coins >= SINGLE_COST && !rolling
+            background: canPay && !animating
               ? "linear-gradient(135deg, #7c3aed, #4c1d95)"
-              : "rgba(255,255,255,0.1)",
+              : "rgba(255,255,255,0.08)",
             border: "none", borderRadius: 14, color: "white",
-            fontSize: 15, fontWeight: "bold", cursor: rolling || coins < SINGLE_COST ? "default" : "pointer",
-            opacity: rolling || coins < SINGLE_COST ? 0.5 : 1,
+            fontSize: 15, fontWeight: "bold",
+            cursor: (animating || !canPay) ? "default" : "pointer",
+            opacity: (animating || !canPay) ? 0.5 : 1,
+            boxShadow: canPay && !animating ? "0 0 20px rgba(124,58,237,0.4)" : "none",
           }}
         >
-          1장 뽑기<br />
-          <span style={{ fontSize: 13, color: "#facc15" }}>💰 {SINGLE_COST}</span>
-        </button>
-        <button
-          onClick={() => doGacha(10)}
-          disabled={rolling || coins < MULTI_COST}
-          style={{
-            flex: 1, padding: "16px 0",
-            background: coins >= MULTI_COST && !rolling
-              ? "linear-gradient(135deg, #db2777, #9d174d)"
-              : "rgba(255,255,255,0.1)",
-            border: "none", borderRadius: 14, color: "white",
-            fontSize: 15, fontWeight: "bold", cursor: rolling || coins < MULTI_COST ? "default" : "pointer",
-            opacity: rolling || coins < MULTI_COST ? 0.5 : 1,
-          }}
-        >
-          10장 뽑기<br />
-          <span style={{ fontSize: 13, color: "#facc15" }}>💰 {MULTI_COST}</span>
+          뽑기 (3장)<br />
+          <span style={{ fontSize: 13, color: "#facc15" }}>💰 {PULL_COST}</span>
         </button>
       </div>
 
-      {/* Rolling Animation */}
-      {step === "rolling" && results.length === 0 && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
-          <div style={{ fontSize: 64, animation: "spin 0.6s linear infinite" }}>🎲</div>
-          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16 }}>뽑는 중...</p>
+      {/* Animating */}
+      {animating && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, paddingTop: 40 }}>
+          <div style={{ fontSize: 64, animation: "spin 0.5s linear infinite" }}>🎲</div>
+          <p style={{ color: "rgba(255,255,255,0.6)" }}>카드를 뽑는 중...</p>
         </div>
       )}
 
       {/* Results */}
-      {results.length > 0 && (
-        <div style={{ margin: "16px 16px 0" }}>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 10 }}>
-            결과 — {results.length}장 획득!
+      {showResults && results.length > 0 && (
+        <div style={{ margin: "20px 16px 0" }}>
+          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 12, textAlign: "center" }}>
+            ✨ {results.length}장 획득!
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
             {results.map((c, i) => (
-              <div key={i} style={{ animation: `popIn 0.3s ease-out ${i * 0.05}s both` }}>
-                <CardResult card={c} />
-              </div>
+              <CardResult key={c.uid} card={c} delay={i * 0.12} />
             ))}
           </div>
-          {!rolling && (
-            <button
-              onClick={() => { setStep("idle"); setResults([]); }}
-              style={{
-                marginTop: 16, width: "100%", padding: "13px 0",
-                background: "linear-gradient(135deg, #7c3aed, #4c1d95)",
-                border: "none", borderRadius: 14, color: "white",
-                fontSize: 15, fontWeight: "bold", cursor: "pointer",
-              }}
-            >
-              한번 더 뽑기
-            </button>
-          )}
+          <button
+            onClick={() => { setShowResults(false); setResults([]); }}
+            style={{
+              marginTop: 20, width: "100%", padding: "13px 0",
+              background: "linear-gradient(135deg, #7c3aed, #4c1d95)",
+              border: "none", borderRadius: 14, color: "white",
+              fontSize: 15, fontWeight: "bold", cursor: "pointer",
+            }}
+          >
+            한번 더 뽑기
+          </button>
         </div>
       )}
 
       <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes popIn { from{transform:scale(0.3) rotate(-10deg);opacity:0} to{transform:scale(1) rotate(0deg);opacity:1} }
       `}</style>
     </div>
   );
